@@ -1,0 +1,115 @@
+# Publishes the GitHub Release Gety installs a connector from when a v* tag is
+# pushed: rebuilds the connector at the tag, packages manifest.json and
+# <id>-<version>.zip with scripts/package.ts, publishes them (as a pre-release
+# when the version has a pre-release part), then downloads both assets the way
+# Gety does and checks them again.
+#
+# Other connector repositories call this workflow instead of copying it; see
+# "Publishing on GitHub" in README.md.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_call:
+    inputs:
+      build-command:
+        description: Shell command that verifies and builds the connector.
+        type: string
+        default: deno task verify
+      include:
+        description: >-
+          Extra files or directories to package, one path per line.
+          manifest.json, the manifest's entry with its .map, and the
+          manifest's icon are always packaged.
+        type: string
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      TAG: ${{ github.ref_name }}
+    steps:
+      - name: Require a tag
+        if: github.ref_type != 'tag'
+        run: |
+          echo "::error::Release runs from a pushed v* tag, not ${GITHUB_REF}."
+          exit 1
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Build
+        run: ${{ inputs.build-command || 'deno task verify' }}
+
+      # Checked out after the build so the connector's own fmt/lint tasks never
+      # see it. job.workflow_* name this workflow's repository and commit, also
+      # when another repository calls it.
+      - name: Checkout packaging script
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          path: .gety-release
+          persist-credentials: false
+          sparse-checkout: scripts/package.ts
+          sparse-checkout-cone-mode: false
+
+      - name: Package
+        env:
+          INCLUDE: ${{ inputs.include }}
+        run: |
+          args=()
+          while IFS= read -r path; do
+            if [ -n "$path" ]; then args+=(--include "$path"); fi
+          done <<< "$INCLUDE"
+          deno run --no-config --no-lock -R -W .gety-release/scripts/package.ts \
+            pack --tag "$TAG" --out "$RUNNER_TEMP/release" "${args[@]}"
+          jq -r '"ASSET=\(.id)-\(.version).zip", "VERSION=\(.version)"' \
+            "$RUNNER_TEMP/release/manifest.json" >> "$GITHUB_ENV"
+
+      - name: Publish
+        run: |
+          prerelease=()
+          if [[ "${VERSION%%+*}" == *-* ]]; then prerelease=(--prerelease); fi
+          gh release create "$TAG" --draft --verify-tag --title "$TAG" \
+            "${prerelease[@]}" \
+            --notes "Install in Gety: Install from GitHub with https://github.com/$GH_REPO/releases/tag/$TAG, or run \`gety connector install --github $GH_REPO --version $TAG\`."
+          gh release upload "$TAG" \
+            "$RUNNER_TEMP/release/manifest.json" "$RUNNER_TEMP/release/$ASSET"
+          gh release edit "$TAG" --draft=false
+
+      - name: Verify published assets
+        run: |
+          download="$RUNNER_TEMP/download"
+          mkdir -p "$download"
+          for name in manifest.json "$ASSET"; do
+            curl -fsSL --retry 5 --retry-all-errors --retry-delay 5 \
+              -o "$download/$name" \
+              "https://github.com/$GH_REPO/releases/download/$TAG/$name"
+            cmp "$RUNNER_TEMP/release/$name" "$download/$name"
+          done
+          deno run --no-config --no-lock -R .gety-release/scripts/package.ts \
+            check "$download" --tag "$TAG"
+          expected="$(printf '%s\n' manifest.json "$ASSET" | LC_ALL=C sort | paste -sd,)"
+          actual="$(gh release view "$TAG" --json assets \
+            --jq '[.assets[].name] | sort | join(",")')"
+          if [ "$actual" != "$expected" ]; then
+            echo "::error::Release assets are '$actual', expected '$expected'."
+            exit 1
+          fi
+          gh release view "$TAG" --json url,isDraft,isPrerelease,assets \
+            --jq '{url, isDraft, isPrerelease, assets: [.assets[] | {name, size}]}'
