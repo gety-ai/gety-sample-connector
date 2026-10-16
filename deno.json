@@ -7,9 +7,10 @@
 	"tasks": {
 		"build": "deno run -A scripts/build.ts",
 		"dev": "deno run -A scripts/build.ts --watch",
-		"check": "deno task generate && deno check src/index.ts scripts/build.ts scripts/setup.ts scripts/generate-manifest-config.ts dev/gety-connector-sdk/mod.ts dev/runner.ts src/gen/manifest.d.ts",
+		"check": "deno task generate && deno check src/index.ts scripts/build.ts scripts/setup.ts scripts/generate-manifest-config.ts scripts/package.ts dev/gety-connector-sdk/mod.ts dev/runner.ts src/gen/manifest.d.ts",
 		"generate": "deno run -A scripts/generate-manifest-config.ts",
 		"setup": "deno run -A scripts/setup.ts",
+		"package": "deno run -R -W scripts/package.ts",
 		"test": "deno test src",
 		"runner": "deno task build && deno run -A --env-file=.env dev/runner.ts",
 		"fix": "deno task fmt && deno task lint:fix",
@@ -25,7 +26,8 @@
 		"singleQuote": true,
 		"lineWidth": 80,
 		"exclude": [
-			"dist/"
+			"dist/",
+			"release/"
 		]
 	},
 	"lint": {

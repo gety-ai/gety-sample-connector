@@ -13,6 +13,9 @@ coverage/
 dev/.runner/
 dev/runs/
 
+# Release assets from deno task package
+release/
+
 # Logs
 *.log
 npm-debug.log*

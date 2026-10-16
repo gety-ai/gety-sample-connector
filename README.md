@@ -92,3 +92,66 @@ deno task runner -- --state dev/.runner/sample-state.json --out-dir dev/runs
 
 After changing `src/index.ts`, run `deno task build`, then use Restart in Gety
 to load the new `dist/main.js`.
+
+## Publishing On GitHub
+
+Gety can install a connector from a GitHub Release instead of a local folder. It
+never builds from source; it only downloads two Release assets:
+
+- `manifest.json`, byte-for-byte identical to the `manifest.json` inside the
+  zip. Gety downloads only this file to show the permissions before the user
+  confirms.
+- `<id>-<version>.zip`, with `id` and `version` from the manifest. Its root is
+  the connector directory (`manifest.json`, the entry, and every other file the
+  connector needs, such as the icon), without a wrapping folder or symbolic
+  links. Limits: 100 MiB zipped, 20,000 files and 500 MiB unpacked.
+
+The tag must equal the manifest `version`, optionally prefixed with `v`
+(`v0.2.0` for `0.2.0`). Gety installs the Release marked Latest by default;
+pre-releases (`v0.2.0-beta.1`) install only through their Release link
+`https://github.com/<owner>/<repo>/releases/tag/<tag>` or
+`gety connector install --github <owner>/<repo> --version <tag>`.
+
+```bash
+deno task build
+deno task package
+```
+
+`deno task package` writes both assets to `release/` and checks them against
+these rules. It packages `manifest.json`, the manifest `entry` and its `.map`,
+and the manifest `icon`; add other files or directories with `--include <path>`.
+Pass `--tag <tag>` to also check the tag against the manifest version.
+
+To publish, bump `version` in `manifest.json`, commit, then push a matching tag:
+
+```bash
+git tag v0.2.0
+git push origin v0.2.0
+```
+
+`.github/workflows/release.yml` then runs `deno task verify` at the tag,
+packages the fresh build (a committed `dist/` that differs is ignored), creates
+the Release as a draft, uploads the two assets, publishes it (as a pre-release
+when the version has a pre-release part), and downloads both assets again to
+check them.
+
+Other connector repositories reuse the workflow with
+`.github/workflows/release.yml`:
+
+```yaml
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  release:
+    uses: gety-ai/gety-sample-connector/.github/workflows/release.yml@main
+    permissions:
+      contents: write
+    # with:
+    #   build-command: deno task verify # default
+    #   include: |
+    #     data/
+```
