@@ -1,7 +1,7 @@
 {
 	"id": "sample_dummy",
 	"name": "Gety Sample Connector",
-	"version": "0.2.0-beta.1",
+	"version": "0.2.0",
 	"min_gety_app_version": "0.6.6",
 	"capabilities": ["data-source"],
 	"entry": "dist/main.js",
