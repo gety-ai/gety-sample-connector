@@ -10,8 +10,10 @@ documents that link to <https://gety.ai/>.
 - `src/index.ts` contains the connector source code.
 - `dist/main.js` is the committed build output loaded by Gety.
 - `dist/main.js.map` is committed to make debugging the bundled entry easier.
-- `dev/gety-connector-sdk/mod.ts` is a local development shim so `deno check`
-  and the build script do not require the npm SDK to be installed.
+- `vendor/gety-deno/` is a byte-exact copy of Gety's Deno connector runtime: the
+  SDK, the host runner and the manifest JSON Schema (`manifest.schema.json`).
+  `@gety-ai/connector-sdk` resolves to `vendor/gety-deno/sdk/src/mod.ts` for
+  type checking and tests.
 - `src/gen/manifest.d.ts` is generated from `manifest.json` by
   `deno task generate`, `deno task check`, or `deno task build`.
 
@@ -25,9 +27,21 @@ deno task build
 The build keeps `@gety-ai/connector-sdk` external. Gety supplies the real SDK at
 runtime through its import map.
 
-`deno task verify` formats code, applies safe lint fixes, runs type checking,
-then builds. `deno task build` only regenerates `dist/main.js` and
-`dist/main.js.map` for fast local iteration.
+`deno task verify` formats code, applies safe lint fixes, checks that
+`vendor/gety-deno/` is unmodified, runs type checking and tests, then builds.
+`deno task build` only regenerates `dist/main.js` and `dist/main.js.map` for
+fast local iteration.
+
+### Updating the SDK
+
+Do not edit `vendor/gety-deno/`: `deno task sync-sdk:check` fails when a file
+differs from the hashes in `vendor/gety-deno/SOURCE.json`, which also records
+the Gety commit and version the copy comes from. Maintainers refresh it from a
+Gety checkout:
+
+```bash
+deno task sync-sdk <gety checkout> --ref <rev>
+```
 
 ## Test
 

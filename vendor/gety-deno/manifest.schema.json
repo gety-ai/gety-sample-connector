@@ -1,0 +1,497 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RawManifest",
+  "description": "Phase-2 strict full manifest. Author-facing source of truth.",
+  "type": "object",
+  "properties": {
+    "author": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/RawAuthor"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "capabilities": {
+      "description": "Host capabilities this connector declares. Required and must be\nnon-empty (validated in [`crate::ParsedManifest::from_raw`]); a\nmissing or unknown entry fails strict parsing.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/RawCapability"
+      }
+    },
+    "config": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/RawConfig"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "description": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "doc_link": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/RawDocLink"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "entry": {
+      "type": "string"
+    },
+    "icon": {
+      "description": "Icon path relative to the manifest directory.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "id": {
+      "type": "string"
+    },
+    "min_gety_app_version": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "permissions": {
+      "description": "Sandbox grants. Absent or `\"unrestricted\"` runs the connector with\nthe user's full privileges; an object (even `{}`) runs it in the\nsandbox with exactly the listed grants. May be omitted, but not set\nto `null`.",
+      "$ref": "#/$defs/RawPermissions"
+    },
+    "schedule": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/RawSchedule"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "schema": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/RawSchema"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "sync_version": {
+      "description": "Format version of the sync results (`state`, document ids, document\ncontent). Bump it when a new release cannot reuse what an older\nrelease synced; Gety then resyncs on upgrade. Defaults to 1.",
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "uint32",
+      "minimum": 1
+    },
+    "version": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "name",
+    "version",
+    "min_gety_app_version",
+    "entry",
+    "capabilities"
+  ],
+  "$defs": {
+    "PermissionOs": {
+      "description": "Operating systems a `read` entry can be scoped to.",
+      "type": "string",
+      "enum": [
+        "macos",
+        "windows",
+        "linux"
+      ]
+    },
+    "RawAuthor": {
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "url": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "RawCapability": {
+      "description": "Author-facing host capability declaration.\n\nA capability is a **host-level feature/admission switch**, not a Deno\nsandbox permission: it tells Gety which host integration points a\nconnector participates in. A manifest must declare at least one.\n\nToday only [`RawCapability::DataSource`] exists — a connector that polls\nand indexes documents. Future host capabilities (e.g. preview,\nnotification) will extend this enum; unknown values fail strict manifest\nparsing (serde rejects unknown variants).",
+      "oneOf": [
+        {
+          "description": "Connector polls a source and indexes documents (`data-source`).",
+          "type": "string",
+          "const": "data-source"
+        }
+      ]
+    },
+    "RawConfig": {
+      "type": "object",
+      "properties": {
+        "fields": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/RawConfigField"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "RawConfigField": {
+      "type": "object",
+      "properties": {
+        "default_value": {
+          "description": "Author-supplied default. JSON is loose here on purpose; consumers\ncoerce to the right [`crate::FormFieldValueType`] and reject\nmismatches at validation time."
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id": {
+          "type": "string"
+        },
+        "options": {
+          "description": "Required when `field_type` is `Dropdown`. Ordering is preserved\n(Vec, not Map) so dropdowns render in the order authors specify.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/RawConfigOption"
+          }
+        },
+        "placeholder": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "required": {
+          "type": "boolean",
+          "default": false
+        },
+        "title": {
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/$defs/RawFieldType"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "title",
+        "type"
+      ]
+    },
+    "RawConfigFieldRef": {
+      "description": "A grant whose value comes from the user's configuration.",
+      "type": "object",
+      "properties": {
+        "config_field": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "config_field"
+      ]
+    },
+    "RawConfigOption": {
+      "type": "object",
+      "properties": {
+        "label": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "value",
+        "label"
+      ]
+    },
+    "RawDocLink": {
+      "type": "object",
+      "properties": {
+        "field": {
+          "description": "Name of the field on the host's `Doc` (core field or metadata\nkey) whose value is the link target. Resolution semantics\n(no dot-path) live on the host side.",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/RawDocLinkKind"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "field"
+      ]
+    },
+    "RawDocLinkKind": {
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "file"
+          ]
+        },
+        {
+          "description": "Aliases mirror the prior Python-connector behavior that called\n`kind.to_lowercase() == \"url\"`, so existing third-party\n`connector_meta.yaml` files using `URL` / `Url` keep parsing.\nAliases never round-trip through serialization (canonical form\nis the lowercase variant).",
+          "type": "string",
+          "const": "url"
+        }
+      ]
+    },
+    "RawFieldType": {
+      "description": "Author-facing field-type names. Maps to [`crate::FormFieldType`] in\nthe runtime crate's manifest parser.",
+      "type": "string",
+      "enum": [
+        "text",
+        "password",
+        "number",
+        "checkbox",
+        "dropdown",
+        "directory"
+      ]
+    },
+    "RawIndexedField": {
+      "type": "object",
+      "properties": {
+        "field": {
+          "type": "string"
+        },
+        "strategy": {
+          "$ref": "#/$defs/RawIndexingStrategy"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "field",
+        "strategy"
+      ]
+    },
+    "RawIndexingStrategy": {
+      "description": "Manifest-side mirror of `gety_core::indexing_strategy::IndexingStrategyType`.\n\nLives here (not in `gety-core`) so runtime crates can declare\nmanifest schemas without pulling in the heavy host. The host owns the\n`From<RawIndexingStrategy>` bridge into its concrete enum.",
+      "type": "string",
+      "enum": [
+        "fast_text",
+        "full_text",
+        "semantic"
+      ]
+    },
+    "RawNetEntry": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "$ref": "#/$defs/RawConfigFieldRef"
+        }
+      ]
+    },
+    "RawPermissionMode": {
+      "oneOf": [
+        {
+          "description": "Run with the user's full privileges (`--allow-all`).",
+          "type": "string",
+          "const": "unrestricted"
+        }
+      ]
+    },
+    "RawPermissionSet": {
+      "description": "Sandbox grants. Every list defaults to empty.\n\n`default` is listed after `skip_serializing_if` in each field's serde\nattribute so specta renders the field as optional (`net?:`) in `types.ts`.",
+      "type": "object",
+      "properties": {
+        "env": {
+          "description": "Environment variable names the connector may read.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "net": {
+          "description": "Hosts the connector may connect to: `\"*\"`, `host`, `host:port`,\n`*.domain`, IPv4 or `[IPv6]` literals, or a `text` config field.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RawNetEntry"
+          }
+        },
+        "read": {
+          "description": "Paths under `~` the connector may read, optionally per OS, or a\n`directory` config field.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RawReadEntry"
+          }
+        },
+        "run": {
+          "description": "Program names the connector may run. Equivalent to full privileges.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "RawPermissions": {
+      "description": "Manifest `permissions`: the string `\"unrestricted\"` for full privileges,\nor an object (possibly `{}`) listing sandbox grants.",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/RawPermissionMode"
+        },
+        {
+          "$ref": "#/$defs/RawPermissionSet"
+        }
+      ]
+    },
+    "RawReadEntry": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "$ref": "#/$defs/RawScopedRead"
+        },
+        {
+          "$ref": "#/$defs/RawConfigFieldRef"
+        }
+      ]
+    },
+    "RawSchedule": {
+      "description": "Manifest `schedule` block — declares the connector's default update\nstrategy. Several shapes are accepted (validated in\n[`crate::ParsedSchedule::from_raw`]):\n\n- legacy `{ \"interval\": 600 }` (shorthand for an interval schedule);\n- `{ \"strategy\": \"manual\" }`;\n- `{ \"strategy\": \"interval\", \"interval_seconds\": 600 }`;\n- `{ \"strategy\": \"daily\", \"time\": \"09:00\" }`.\n\nAbsent `schedule` keeps the default interval behavior.",
+      "type": "object",
+      "properties": {
+        "interval": {
+          "description": "Legacy shorthand for an interval (seconds). Prefer `interval_seconds`.\nClamped to ≥ [`MIN_SCHEDULE_INTERVAL_SECONDS`]; sub-minimum values set\n[`crate::ParsedSchedule`]'s `interval_was_clamped` so the host can warn.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "interval_seconds": {
+          "description": "Canonical interval in seconds (used with `strategy: \"interval\"`).",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "strategy": {
+          "description": "Update strategy. Absent means legacy interval shorthand.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RawScheduleStrategy"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "time": {
+          "description": "Daily poll time `HH:mm` or `HH:mm:ss`, local time (used with\n`strategy: \"daily\"`).",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "RawScheduleStrategy": {
+      "description": "Author-facing update-schedule strategy. Host-neutral: parsed into\n[`crate::ParsedSchedule`], which `gety-core` maps to its runtime config.",
+      "oneOf": [
+        {
+          "description": "No automatic polling; the host triggers updates explicitly.",
+          "type": "string",
+          "const": "manual"
+        },
+        {
+          "description": "Poll every `interval_seconds`.",
+          "type": "string",
+          "const": "interval"
+        },
+        {
+          "description": "Poll once per day at `time` (`HH:mm` or `HH:mm:ss`, local time).",
+          "type": "string",
+          "const": "daily"
+        }
+      ]
+    },
+    "RawSchema": {
+      "description": "Manifest `schema` block — declares extra indexed fields beyond the\nbuilt-in (title / content / metadata) defaults.\n\nDeno-local copy of the shared schema contract: it reuses\n[`gety_connector_meta::RawIndexedField`] but renames the author-facing\nfield to `extra_gety_indexed_fields`, keeping the Python-shared\n[`gety_connector_meta::RawSchema`] (`extra_indexed_fields`) untouched.",
+      "type": "object",
+      "properties": {
+        "extra_gety_indexed_fields": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/RawIndexedField"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "RawScopedRead": {
+      "description": "A `read` path that only applies on the listed operating systems.",
+      "type": "object",
+      "properties": {
+        "os": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/PermissionOs"
+          }
+        },
+        "path": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "os"
+      ]
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+	"gety_commit": "09b210be7c7e1b124edf66739d61bb7298a7cd66",
+	"gety_version": "0.6.5",
+	"protocol_version": "0.2.0",
+	"files": {
+		"host/runner.ts": "7157e81f4ceeb3c0e610e76fc474dd3a677a9fcbba5d68981d4c925b9a02648e",
+		"host/start_frame.ts": "c3c1dc89d865e423641cc4997fef76a6a6062ec575e2726e01d640c1f5541abe",
+		"manifest.schema.json": "b508a94fccb5f6207900304aab1709aed9b190209ff908b24c6e7837041399ee",
+		"sdk/src/connector.ts": "8b8d1859faef220b7d6e21cf736e94140f5088b6b3959be3d46f34c49275ceba",
+		"sdk/src/helpers.ts": "6f62e9d7d4e2c03db4f81e2553cdf21f5aa5d7882b06d4092c137049776d6744",
+		"sdk/src/ipc.ts": "dad10981139fcc9b91a712f48774f667a6ea3434be554ce5c307824e2426fd16",
+		"sdk/src/mod.ts": "e30dc19b0e60aeac064dbed527355ff5f30e833380e4ee8a295d4d31ca61ae05",
+		"sdk/src/types.ts": "8dea6d84196f6aea24cede74a716afdb871efe24aa0183292c1077dc2a1511dc",
+		"wire.schema.json": "f7bb4485463eeb442aa63380145a34f19bbb43e445f86abf3e536a25b75801c6"
+	}
+}
