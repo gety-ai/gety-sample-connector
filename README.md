@@ -50,8 +50,8 @@ deno task test
 deno task verify
 ```
 
-Unit tests use Deno's built-in test runner and cover stable connector behavior.
-They do not require network access.
+Unit tests use Deno's built-in test runner and cover stable connector behavior
+and the live runner (`dev/`). They do not require network access.
 
 ## Live Runner
 
@@ -60,12 +60,22 @@ cp .env.example .env
 deno task runner -- --reset-state
 ```
 
-`dev/runner.ts` is a generic local runner for the Gety connector runtime
-contract. It is not sample-specific: it reads `manifest.json`, imports the
-manifest `entry` (`dist/main.js` by default), builds config values from `.env`,
-injects `config`, `lastState`, and `signal`, then runs `onLoad()` and `poll()`.
-Each poll cycle creates a fresh connector instance and runs `onLoad()`, matching
-Gety's one-shot Deno runner lifecycle.
+`dev/runner.ts` runs the connector the way Gety does. It is not sample-specific:
+it reads `manifest.json`, builds config values from `.env`, and starts Gety's
+own runner (`vendor/gety-deno/host/runner.ts`) in a separate Deno process with
+the sandbox arguments Gety derives from the manifest `permissions`
+(`dev/sandbox.ts`; a manifest without `permissions` runs with full access, as in
+Gety). Each poll is a fresh process that imports the manifest `entry`
+(`dist/main.js` by default), creates the connector with its `config`,
+`lastState`, `signal`, `dataDir` and `homeDir`, then runs `onLoad()` and
+`poll()`.
+
+An access that the manifest does not grant fails the poll with the message Gety
+shows, for example:
+
+```text
+permission denied: net access to "example.com:443" is not granted by the connector's manifest
+```
 
 Config environment variables are derived from manifest field IDs. For example, a
 field named `api_key` can be set as `GETY_CONFIG_API_KEY` or `API_KEY`, and a
@@ -89,14 +99,32 @@ dev/runs/<timestamp>/
     0001-<doc_type>__<doc_id>.json
 ```
 
-The persistent runner state lives at `dev/.runner/state.json`, so repeated runs
-exercise incremental sync. Use `--reset-state` to start from an empty state.
-Optional flags:
+`summary.json` also records each poll's outcome and the Deno arguments the
+runner used.
+
+The state is committed as in Gety: only when the poll finishes successfully, and
+then saved to `dev/.runner/state.json` before the next poll starts. A failed or
+cancelled poll leaves it unchanged, so repeated runs exercise incremental sync
+and replays. Use `--reset-state` to start from an empty state. `this.dataDir` is
+`dev/.runner/data/` (also the working directory) and is kept between runs; the
+temporary folder is created for each poll and deleted after it. Ctrl+C cancels a
+poll: like Gety, the runner closes the connector process's stdin, which aborts
+`this.signal`, and kills the process if it has not exited 5 seconds later (a
+Ctrl+C in the terminal also interrupts the connector process directly).
+
+Optional flags (`deno task runner -- --help` lists them all):
 
 ```bash
 deno task runner -- --polls 3 --interval 60
 deno task runner -- --state dev/.runner/sample-state.json --out-dir dev/runs
+deno task runner -- --permissions '{"net":["api.example.com"]}'
+deno task runner -- --full-access
 ```
+
+`--permissions` tries another `permissions` value without editing the manifest,
+and `--full-access` runs without the sandbox. The runner uses the `deno` on your
+`PATH` (or `--deno <path>`, or `DENO_BIN`); Gety runs connectors with the Deno
+it bundles.
 
 ## Install In Gety
 

@@ -5,7 +5,9 @@
  *
  *   deno task sync-sdk <gety checkout> [--ref <rev>]
  *     Copy the files from <rev> (default HEAD) of the checkout and rewrite
- *     SOURCE.json.
+ *     SOURCE.json. Reports which Gety files that dev/sandbox.ts and
+ *     dev/runner.ts mirror by hand (sandbox flags, state commit) changed
+ *     since the last sync.
  *   deno task sync-sdk:check
  *     Fail when a vendored file was edited, added or removed by hand.
  *
@@ -35,12 +37,27 @@ function isVendoredFile(path: string): boolean {
 	].includes(path);
 }
 
+/**
+ * Gety files whose rules dev/sandbox.ts and dev/runner.ts re-implement. A
+ * change in any of them means the dev runner may have drifted from the host.
+ */
+const MIRRORED_FILES = [
+	'libs/gety-deno-connectors/src/launch.rs',
+	'libs/gety-deno-connectors/src/permissions/parse.rs',
+	'libs/gety-deno-connectors/src/permissions/derive.rs',
+	'libs/gety-deno-connectors/src/permissions/report.rs',
+	'gety-core/src/connector/impls/deno/connector.rs',
+	'gety-core/src/core/connector_manager/connector_wrapper.rs',
+];
+
 interface Source {
 	gety_commit: string;
 	gety_version: string;
 	protocol_version: string;
 	/** sha256 of every vendored file, keyed by its path in vendor/gety-deno. */
 	files: Record<string, string>;
+	/** sha256 of the Gety files mirrored by dev/sandbox.ts and dev/runner.ts. */
+	mirrored: Record<string, string>;
 }
 
 if (import.meta.main) {
@@ -129,6 +146,10 @@ async function sync({ checkout, ref }: { checkout: string; ref: string }) {
 		blobs.set(path, bytes);
 		files[path] = await sha256(bytes);
 	}
+	const mirrored: Record<string, string> = {};
+	for (const path of MIRRORED_FILES) {
+		mirrored[path] = await sha256(await gitBlob(checkout, commit, path));
+	}
 	const protocolVersion = decoder.decode(blobs.get('host/runner.ts')).match(
 		/const BUNDLED_PROTOCOL_VERSION = "([^"]+)";/,
 	)?.[1];
@@ -142,6 +163,7 @@ async function sync({ checkout, ref }: { checkout: string; ref: string }) {
 		throw new Error('gety-client/package.json has no version.');
 	}
 
+	const previous = await readSource();
 	await Deno.remove(vendorDir, { recursive: true }).catch((error) => {
 		if (!(error instanceof Deno.errors.NotFound)) {
 			throw error;
@@ -157,6 +179,7 @@ async function sync({ checkout, ref }: { checkout: string; ref: string }) {
 		gety_version: getyVersion,
 		protocol_version: protocolVersion,
 		files,
+		mirrored,
 	};
 	await Deno.writeTextFile(
 		sourcePath,
@@ -166,6 +189,18 @@ async function sync({ checkout, ref }: { checkout: string; ref: string }) {
 	console.log(
 		`Vendored ${paths.length} files from Gety ${getyVersion} (${commit}).`,
 	);
+	const changed = MIRRORED_FILES.filter((path) =>
+		previous != null && previous.mirrored[path] !== mirrored[path]
+	);
+	if (changed.length > 0) {
+		console.warn(
+			[
+				`Gety files mirrored by dev/sandbox.ts and dev/runner.ts changed since ${previous?.gety_commit}:`,
+				...changed.map((path) => `  ${path}`),
+				'Review them and update the dev runner to match.',
+			].join('\n'),
+		);
+	}
 }
 
 async function check(): Promise<string[]> {

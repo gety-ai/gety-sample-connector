@@ -12,5 +12,13 @@
 		"sdk/src/mod.ts": "e30dc19b0e60aeac064dbed527355ff5f30e833380e4ee8a295d4d31ca61ae05",
 		"sdk/src/types.ts": "8dea6d84196f6aea24cede74a716afdb871efe24aa0183292c1077dc2a1511dc",
 		"wire.schema.json": "f7bb4485463eeb442aa63380145a34f19bbb43e445f86abf3e536a25b75801c6"
+	},
+	"mirrored": {
+		"libs/gety-deno-connectors/src/launch.rs": "d0d2829e79263e2826b8d870db1c51001ad923898fafd238b430c15467122695",
+		"libs/gety-deno-connectors/src/permissions/parse.rs": "50a46eeff696c64f2b0323316ea8a587a4464a8b79764416cf498e3b9894e23c",
+		"libs/gety-deno-connectors/src/permissions/derive.rs": "797039dfeeb0207361ad9919f534c2e5d049ca53cff9c60c7343f96c3830ead8",
+		"libs/gety-deno-connectors/src/permissions/report.rs": "8077d7517bfface86b80e1405215d7fc5f9c49335da16d047fced87f595e3ccf",
+		"gety-core/src/connector/impls/deno/connector.rs": "b13a67c3270493cbff9c21b48a70e38233671aeb01a9d0ac0e7e253d818b04c0",
+		"gety-core/src/core/connector_manager/connector_wrapper.rs": "ab8272acb70966108c8306a5110703db27d2d68ad88d3cda8798f21f131c88e8"
 	}
 }
