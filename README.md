@@ -11,6 +11,9 @@ documents that link to <https://gety.ai/>.
 - `src/index.ts` contains the connector source code.
 - `dist/main.js` is the committed build output loaded by Gety.
 - `dist/main.js.map` is committed to make debugging the bundled entry easier.
+- `package.json` publishes the connector on npm. `deno task sync` derives its
+  `version`, `description`, `files` and `gety` from `manifest.json`.
+- `CHANGELOG.md` holds the release notes Gety shows for each npm version.
 - `vendor/gety-deno/` is a byte-exact copy of Gety's Deno connector runtime: the
   SDK, the host runner and the manifest JSON Schema (`manifest.schema.json`).
   `@gety-ai/connector-sdk` resolves to `vendor/gety-deno/sdk/src/mod.ts` for
@@ -28,10 +31,10 @@ deno task build
 The build keeps `@gety-ai/connector-sdk` external. Gety supplies the real SDK at
 runtime through its import map.
 
-`deno task verify` formats code, applies safe lint fixes, checks that
-`vendor/gety-deno/` is unmodified, runs type checking and tests, then builds.
-`deno task build` only regenerates `dist/main.js` and `dist/main.js.map` for
-fast local iteration.
+`deno task verify` updates `package.json` from `manifest.json`, formats code,
+applies safe lint fixes, checks that `vendor/gety-deno/` is unmodified, runs
+type checking and tests, then builds. `deno task build` only regenerates
+`dist/main.js` and `dist/main.js.map` for fast local iteration.
 
 ### Updating the SDK
 
@@ -188,6 +191,20 @@ After changing `src/index.ts`, run `deno task build`, then use **Restart** in
 Gety to load the new `dist/main.js`. **Rebuild index** in the connector's menu
 deletes its documents and syncs again from an empty state.
 
+## Make It Your Own
+
+Before publishing a connector built from this sample, give it its own identity:
+
+- `id` in `manifest.json`: prefix it with your own name (`acme-notes`, not
+  `notes`). Gety identifies an installed connector by its `id`, so a connector
+  with the same `id` cannot be installed next to yours, and changing it after
+  publishing makes users install a second copy.
+- `name`, `description` and `author` in `manifest.json`.
+- `name`, `homepage`, `bugs` and `repository` in `package.json`, then run
+  `deno task sync`.
+- On npmjs.com, a trusted publisher for your package, so that pushing a tag
+  publishes it ([Publishing On npm](#publishing-on-npm)).
+
 ## Publishing On GitHub
 
 Gety can install a connector from a GitHub Release instead of a local folder. It
@@ -205,7 +222,9 @@ The tag must equal the manifest `version`, optionally prefixed with `v`
 (`v0.2.0` for `0.2.0`). Gety installs the Release marked Latest by default;
 pre-releases (`v0.2.0-beta.1`) install only through their Release link
 `https://github.com/<owner>/<repo>/releases/tag/<tag>` or
-`gety connector install --github <owner>/<repo> --version <tag>`.
+`gety connector install --github <owner>/<repo> --version <tag>`. The **View
+documentation** link in Gety's install review, and in the **Configure** dialog
+of a connector installed from GitHub, opens the Release's page.
 
 ```bash
 deno task build
@@ -217,7 +236,8 @@ these rules. It packages `manifest.json`, the manifest `entry` and its `.map`,
 and the manifest `icon`; add other files or directories with `--include <path>`.
 Pass `--tag <tag>` to also check the tag against the manifest version.
 
-To publish, bump `version` in `manifest.json`, commit, then push a matching tag:
+To publish, bump `version` in `manifest.json`, run `deno task verify`, commit,
+then push a matching tag:
 
 ```bash
 git tag v0.2.0
@@ -228,7 +248,8 @@ git push origin v0.2.0
 packages the fresh build (a committed `dist/` that differs is ignored), creates
 the Release as a draft, uploads the two assets, publishes it (as a pre-release
 when the version has a pre-release part), and downloads both assets again to
-check them.
+check them. The same tag also publishes the npm package
+([Publishing On npm](#publishing-on-npm)).
 
 Other connector repositories reuse the workflow with
 `.github/workflows/release.yml`:
@@ -250,3 +271,74 @@ jobs:
     #   include: |
     #     data/
 ```
+
+## Publishing On npm
+
+Users can also install the connector from npm: **Install from remote** in Gety's
+Connectors settings with the package name (`gety-sample-connector`) or its
+npmjs.com link, or `gety connector install --npm gety-sample-connector`. Gety
+reads the manifest from the `gety` object in `package.json`, not from a
+`manifest.json` in the package. `deno task sync` (part of `deno task verify`)
+keeps `manifest.json` the single source:
+
+- `gety` is the complete manifest, and `version` equals `gety.version`.
+- `files` lists the entry, its source map, the manifest `icon` if there is one,
+  and `CHANGELOG.md`; npm packs only these, `package.json` and the README. Add
+  any other file the connector loads at run time in `scripts/sync-package.ts`.
+- `description` is the first line of the manifest `description`.
+
+Set `homepage` to an http(s) link to the connector's documentation, such as its
+README: the **View documentation** link in Gety's install review, and in the
+**Configure** dialog once the connector is installed, opens it. Without an
+http(s) `homepage`, the link opens the version's page on npmjs.com.
+
+To publish, bump `version` in `manifest.json`, add a section for it to
+`CHANGELOG.md`, run `deno task verify`, commit, then push the tag `v<version>`
+as in [Publishing On GitHub](#publishing-on-github).
+`.github/workflows/npm-publish.yml` then runs `deno task verify` at the tag,
+checks the tag against the package `version` and runs `npm publish` with npm
+trusted publishing, so the repository needs no npm token. The workflow is
+separate from `release.yml`, which other repositories call.
+
+npm accepts a trusted publisher only for a package that already exists, so
+publish the first version by hand, then add the trusted publisher on the
+package's settings page on npmjs.com (GitHub Actions, this repository, workflow
+`npm-publish.yml`). The workflow skips a version that is already on npm.
+
+```bash
+deno task verify
+npm publish
+```
+
+`npm publish` first runs `deno task sync:check`, which fails when `package.json`
+is out of date or a file it lists is missing.
+
+- Gety installs the version the `latest` dist-tag points to, or the exact
+  version a user names (`gety-sample-connector@0.3.0-beta.1`, its npmjs.com
+  version page, or `--version`). npm requires a dist-tag for a pre-release; the
+  workflow publishes pre-releases under `next` (by hand:
+  `npm publish --tag next`).
+- Gety offers a version as an update when it is higher than the installed one,
+  not a pre-release, not deprecated and runs on the user's Gety; the `latest`
+  dist-tag plays no part in this.
+- The release notes are the `CHANGELOG.md` section whose heading is the version
+  (`## 0.2.0`). Keep the sections of older versions.
+- A published version cannot be changed or republished, so its permissions are
+  fixed. Withdraw a broken version with
+  `npm deprecate gety-sample-connector@0.2.0 "<reason>"`: Gety never offers a
+  deprecated version as an update.
+- When a release cannot continue from what an older release synced (the `state`
+  changes shape or document ids change), increase `sync_version` in
+  `manifest.json` (1 when absent). Gety then deletes the connector's documents
+  and syncs from scratch on upgrade.
+- When the system region is mainland China, Gety reads from npmmirror first,
+  which usually picks up a new version within a few minutes.
+
+More rules (tarball limits, version switching, what carries over):
+[Publish on npm](https://docs.gety.ai/build-a-connector#publish-on-npm).
+
+To list a published connector under **Featured connectors** > **Community** in
+Gety, register it as described in the
+[gety-connectors contribution guide](https://github.com/gety-ai/gety-connectors/blob/main/CONTRIBUTING.md).
+A listed connector needs a manifest `icon`, which this sample does not have: add
+one before registering (`deno task sync` adds it to `files`).
