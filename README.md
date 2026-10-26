@@ -1,6 +1,7 @@
 # Gety Sample Connector
 
-This is a minimal runnable Gety custom connector. It emits a small set of fixed
+This is a minimal runnable Gety custom connector for Gety 0.6.6 or later. It
+runs in Gety's sandbox without any permissions and emits a small set of fixed
 documents that link to <https://gety.ai/>.
 
 ## Files
@@ -126,14 +127,66 @@ and `--full-access` runs without the sandbox. The runner uses the `deno` on your
 `PATH` (or `--deno <path>`, or `DENO_BIN`); Gety runs connectors with the Deno
 it bundles.
 
+## Permissions
+
+`permissions` in `manifest.json` decides what the connector's process may do,
+and Gety shows it to the user before every install. This sample only builds
+documents from constants, so it declares `"permissions": {}`: Gety runs it in
+its sandbox with only the base access every sandboxed connector has (its data
+folder `this.dataDir`, a temporary folder that is deleted after each sync, basic
+system information and its own code). Declare only what your connector needs,
+for example:
+
+```json
+{
+	"permissions": {
+		"net": ["api.example.com"],
+		"read": ["~/Documents/notes"]
+	}
+}
+```
+
+Without `permissions` (or with `"unrestricted"`), a connector runs with full
+access to everything the user can do. Broad grants such as `"*"` in `net`, `"~"`
+in `read` or any `run` entry make the user confirm the install a second time.
+The sandbox needs Gety 0.6.6 or later, so the manifest sets
+`min_gety_app_version` to `0.6.6` and older versions refuse to install it.
+
+Gety does not open a document link that points into a connector's own folders or
+to a file that does not exist, so link documents to the upstream service (as
+this sample does with `metadata.url`) or to the user's own files.
+
+All entries (`net`, `read`, `env`, `run` and values taken from config fields),
+the base access and the errors are described in the
+[connector reference](https://docs.gety.ai/connector-reference#permissions).
+
+## Sync Lifecycle
+
+`src/index.ts` follows the rules every connector must follow:
+
+- **Replay-safe state.** Gety saves the `state` a poll yields only after the
+  whole poll succeeds, and it may already have indexed part of the updates of a
+  poll that then fails. The next poll starts again from the previous state, so
+  derive updates from `lastState` and stable document ids so that a replay ends
+  with the same documents.
+- **Cooperative cancellation.** Check `this.signal` between units of work and
+  pass it to `fetch()` and other long calls. Gety kills a connector that has not
+  stopped 5 seconds after cancelling it.
+- **Heartbeats.** Gety cancels a poll that yields no batch and logs nothing for
+  10 minutes. During long operations, yield batches or log a low-frequency
+  progress line with `console.info()`; console output goes to Gety's log.
+
 ## Install In Gety
 
-1. Open Gety's Custom Connectors settings page.
-2. Install from local folder and select this repository.
-3. Wait for the first poll to finish, then search for `Gety Sample Connector`.
+1. Open Gety's settings and go to Connectors.
+2. Choose **Install from local folder** and select this repository.
+3. Gety shows the permissions to review ("This connector declares no
+   permissions."). Choose **Install**.
+4. Wait for the first sync to finish, then search for `Gety Sample Connector`.
 
-After changing `src/index.ts`, run `deno task build`, then use Restart in Gety
-to load the new `dist/main.js`.
+After changing `src/index.ts`, run `deno task build`, then use **Restart** in
+Gety to load the new `dist/main.js`. **Rebuild index** in the connector's menu
+deletes its documents and syncs again from an empty state.
 
 ## Publishing On GitHub
 

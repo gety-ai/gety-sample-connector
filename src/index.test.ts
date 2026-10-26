@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { buildSamplePollResult } from './index.ts';
+import GetySampleConnector, { buildSamplePollResult } from './index.ts';
 
 Deno.test('buildSamplePollResult emits stable markdown docs', () => {
 	const result = buildSamplePollResult(3);
@@ -35,4 +35,27 @@ Deno.test('buildSamplePollResult emits stable markdown docs', () => {
 		created_at: '2026-05-12T00:00:00Z',
 		source: 'gety-sample-connector',
 	});
+});
+
+Deno.test('a replayed poll emits the same updates and state', async () => {
+	const replay = async () => {
+		const connector = Object.assign(new GetySampleConnector(), {
+			lastState: { run_count: 2 },
+		});
+		return await Array.fromAsync(connector.poll());
+	};
+
+	const first = await replay();
+	assert.deepEqual(first, [buildSamplePollResult(3)]);
+	assert.deepEqual(await replay(), first);
+});
+
+Deno.test('poll stops once Gety cancels it', async () => {
+	const controller = new AbortController();
+	controller.abort();
+	const connector = Object.assign(new GetySampleConnector(), {
+		signal: controller.signal,
+	});
+
+	await assert.rejects(connector.poll().next(), { name: 'AbortError' });
 });
