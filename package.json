@@ -1,0 +1,49 @@
+{
+	"name": "gety-sample-connector",
+	"version": "0.2.0",
+	"description": "A minimal runnable sample connector that indexes a small Gety introduction.",
+	"keywords": [
+		"gety",
+		"gety-connector"
+	],
+	"homepage": "https://github.com/gety-ai/gety-sample-connector#readme",
+	"bugs": "https://github.com/gety-ai/gety-sample-connector/issues",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/gety-ai/gety-sample-connector.git"
+	},
+	"files": [
+		"dist/main.js",
+		"dist/main.js.map",
+		"CHANGELOG.md"
+	],
+	"scripts": {
+		"prepublishOnly": "deno task sync:check"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"gety": {
+		"id": "sample_dummy",
+		"name": "Gety Sample Connector",
+		"version": "0.2.0",
+		"min_gety_app_version": "0.6.6",
+		"capabilities": [
+			"data-source"
+		],
+		"entry": "dist/main.js",
+		"description": "A minimal runnable sample connector that indexes a small Gety introduction.",
+		"author": {
+			"name": "Gety"
+		},
+		"schedule": {
+			"strategy": "interval",
+			"interval_seconds": 3600
+		},
+		"permissions": {},
+		"doc_link": {
+			"kind": "url",
+			"field": "url"
+		}
+	}
+}

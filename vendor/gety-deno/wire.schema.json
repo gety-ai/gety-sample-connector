@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "WireDocUpdate",
+  "description": "Per-batch operations emitted by a Deno connector.\n\nMVP carries only `Upsert` and `Delete`. **Patch is intentionally\nomitted** — full Upsert covers every expressible state change; Patch\nis a wire-payload optimization that will be added when a real\nconnector hits the pain point (e.g. 50 KB content with cursor-only\nupdates), at which point we'll also resolve the\nnull-vs-absent-vs-delete-field semantics.\n\nTag layout is `{ \"kind\": \"upsert\", \"doc\": { ... } }` /\n`{ \"kind\": \"delete\", \"id\": \"...\" }`. The explicit\n`rename_all = \"snake_case\"` is required: serde's default variant\nnaming would emit `Upsert` / `Delete`.",
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "doc": {
+          "$ref": "#/$defs/WireDoc"
+        },
+        "kind": {
+          "type": "string",
+          "const": "upsert"
+        }
+      },
+      "required": [
+        "kind",
+        "doc"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string",
+          "const": "delete"
+        }
+      },
+      "required": [
+        "kind",
+        "id"
+      ]
+    }
+  ],
+  "$defs": {
+    "WireContentFormat": {
+      "type": "string",
+      "enum": [
+        "plaintext",
+        "markdown"
+      ]
+    },
+    "WireDoc": {
+      "description": "A document delivered from a Deno connector to the Gety host.\n\nMirrors core `Doc`'s author-facing fields. Host-internal fields\n(DocInternalId, parsed `DateTime<Local>`) never appear on the wire.\n\nDefaults applied by the host when the field is absent on the wire:\n`doc_updated_at` → ingestion time fallback; `doc_type` → `\"other\"`;\n`original_file_size` → `None`; `content_format` → `Plaintext`.\nAuthors should fill `doc_updated_at` with a stable source-of-truth\ntimestamp (Notion `last_edited_time`, GitHub `updated_at`, …) so\nrecency tags and time facets do not drift on every re-upsert.\nRecognized metadata keys:\n- `url` is the conventional field for manifest `doc_link.field = \"url\"`.\n- `created_at` may hold an RFC 3339 source creation timestamp for preview\n  display; the host validates it when present.",
+      "type": "object",
+      "properties": {
+        "content": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "content_format": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WireContentFormat"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "doc_type": {
+          "description": "Recommended `<namespace>:<type>` (e.g. `notion:page`, `file:pdf`,\n`fs:folder`). Rust host does **not** validate the format; UI\nfacet logic only recognizes the `file:*` prefix in MVP.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "doc_updated_at": {
+          "description": "RFC 3339 string (a strict ISO-8601 profile; include an offset or `Z`).\nHost converts to `DateTime<Local>` during `into_core_doc()`; missing →\ningestion time; unparseable → poll error.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "hide_from_search": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "id": {
+          "type": "string"
+        },
+        "metadata": {
+          "description": "Author metadata. `url` is commonly used by manifest `doc_link.field`;\nthe host validates `created_at` when present because preview UI treats\nit as a display timestamp. Other keys are connector-defined."
+        },
+        "original_file_size": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "parent_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "title": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "title"
+      ]
+    }
+  }
+}

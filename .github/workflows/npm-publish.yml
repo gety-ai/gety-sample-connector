@@ -1,0 +1,81 @@
+# Publishes the npm package when a v* tag is pushed, next to the GitHub Release
+# that release.yml publishes from the same tag. Uses npm trusted publishing
+# (OIDC), so no npm token: the trusted publisher of the package on npmjs.com
+# names this repository and this file, so keep it npm-publish.yml.
+#
+# Not part of release.yml: other repositories call release.yml, and a caller
+# must grant every permission a called job requests, even a job that is
+# skipped, so an `id-token: write` job there would fail their releases at
+# startup.
+#
+# npm lets a trusted publisher be configured only for a package that exists,
+# so the first version is published by hand (`npm publish`); this workflow
+# skips a version that is already on npm.
+name: Publish to npm
+
+on:
+  push:
+    tags: ['v*']
+
+permissions: {}
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # npm trusted publishing
+    env:
+      TAG: ${{ github.ref_name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Check npm supports trusted publishing
+        run: |
+          npm_version="$(npm --version)"
+          echo "npm ${npm_version}"
+          if [ "$(printf '%s\n' 11.5.1 "${npm_version}" | sort -V | head -n 1)" != 11.5.1 ]; then
+            echo "::error::npm ${npm_version} cannot publish with trusted publishing; 11.5.1 or later is required"
+            exit 1
+          fi
+
+      # Also runs `deno task sync`, so package.json matches manifest.json, and
+      # rebuilds dist/: the package carries the fresh build, as the Release does.
+      - name: Build
+        run: deno task verify
+
+      - name: Check the tag
+        run: |
+          name="$(jq -r .name package.json)"
+          version="$(jq -r .version package.json)"
+          if [ "${TAG#v}" != "${version}" ]; then
+            echo "::error::Tag ${TAG} does not match package.json version ${version}."
+            exit 1
+          fi
+          printf 'NAME=%s\nVERSION=%s\n' "${name}" "${version}" >> "$GITHUB_ENV"
+
+      # `npm publish` runs `deno task sync:check` first (prepublishOnly). npm
+      # refuses a pre-release without a dist-tag, so pre-releases go to `next`
+      # and never become `latest`, the version Gety installs by default.
+      - name: Publish
+        run: |
+          if [ -n "$(npm view "${NAME}@${VERSION}" version 2>/dev/null)" ]; then
+            echo "::notice::${NAME}@${VERSION} is already on npm."
+            exit 0
+          fi
+          dist_tag=()
+          if [[ "${VERSION%%+*}" == *-* ]]; then dist_tag=(--tag next); fi
+          npm publish "${dist_tag[@]}"

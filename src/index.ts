@@ -61,8 +61,20 @@ export default class GetySampleConnector extends Connector<
 	SampleState
 > {
 	async *poll(): AsyncGenerator<PollResult, void, unknown> {
+		// Gety saves `state` only after the whole poll succeeds, so a failed or
+		// cancelled poll runs again from the previous state. Derive every update
+		// from `lastState` and stable ids so that a replay converges on the same
+		// documents.
 		const nextRunCount = (this.lastState?.run_count ?? 0) + 1;
 
+		// Cancellation is cooperative: check `this.signal` between units of work
+		// and pass it to fetch() and other long calls.
+		this.signal.throwIfAborted();
+
+		// Console output is forwarded to Gety's log and, like every yielded
+		// batch, shows that the poll is alive: Gety cancels a poll that stays
+		// silent for 10 minutes.
+		console.info(`Sample poll ${nextRunCount}: indexing 2 documents`);
 		yield buildSamplePollResult(nextRunCount);
 	}
 }
