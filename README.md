@@ -222,9 +222,7 @@ The tag must equal the manifest `version`, optionally prefixed with `v`
 (`v0.2.0` for `0.2.0`). Gety installs the Release marked Latest by default;
 pre-releases (`v0.2.0-beta.1`) install only through their Release link
 `https://github.com/<owner>/<repo>/releases/tag/<tag>` or
-`gety connector install --github <owner>/<repo> --version <tag>`. The **View
-documentation** link in Gety's install review, and in the **Configure** dialog
-of a connector installed from GitHub, opens the Release's page.
+`gety connector install --github <owner>/<repo> --version <tag>`.
 
 ```bash
 deno task build
