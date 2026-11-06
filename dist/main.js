@@ -52,6 +52,8 @@ function buildSamplePollResult(nextRunCount) {
 var GetySampleConnector = class extends Connector {
   async *poll() {
     const nextRunCount = (this.lastState?.run_count ?? 0) + 1;
+    this.signal.throwIfAborted();
+    console.info(`Sample poll ${nextRunCount}: indexing 2 documents`);
     yield buildSamplePollResult(nextRunCount);
   }
 };

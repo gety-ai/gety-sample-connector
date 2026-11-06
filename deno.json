@@ -1,24 +1,29 @@
 {
 	"imports": {
-		"@gety-ai/connector-sdk": "./dev/gety-connector-sdk/mod.ts",
+		"@gety-ai/connector-sdk": "./vendor/gety-deno/sdk/src/mod.ts",
 		"esbuild": "npm:esbuild@^0.24.2",
 		"@luca/esbuild-deno-loader": "jsr:@luca/esbuild-deno-loader@^0.11.1"
 	},
+	"nodeModulesDir": "none",
 	"tasks": {
 		"build": "deno run -A scripts/build.ts",
 		"dev": "deno run -A scripts/build.ts --watch",
-		"check": "deno task generate && deno check src/index.ts scripts/build.ts scripts/setup.ts scripts/generate-manifest-config.ts scripts/package.ts dev/gety-connector-sdk/mod.ts dev/runner.ts src/gen/manifest.d.ts",
+		"check": "deno task generate && deno check src/index.ts scripts/build.ts scripts/setup.ts scripts/generate-manifest-config.ts scripts/package.ts scripts/sync-package.ts scripts/sync-sdk.ts dev/runner.ts vendor/gety-deno/host/runner.ts src/gen/manifest.d.ts",
 		"generate": "deno run -A scripts/generate-manifest-config.ts",
 		"setup": "deno run -A scripts/setup.ts",
 		"package": "deno run -R -W scripts/package.ts",
-		"test": "deno test src",
+		"sync": "deno run -R -W scripts/sync-package.ts",
+		"sync:check": "deno run -R scripts/sync-package.ts --check",
+		"sync-sdk": "deno run -R -W --allow-run scripts/sync-sdk.ts",
+		"sync-sdk:check": "deno run -R scripts/sync-sdk.ts --check",
+		"test": "deno test --allow-read --allow-write --allow-run src dev",
 		"runner": "deno task build && deno run -A --env-file=.env dev/runner.ts",
 		"fix": "deno task fmt && deno task lint:fix",
 		"fmt": "deno fmt",
 		"fmt:check": "deno fmt --check",
 		"lint": "deno lint",
 		"lint:fix": "deno lint --fix",
-		"verify": "deno task fix && deno task check && deno task test && deno task build"
+		"verify": "deno task sync && deno task fix && deno task sync-sdk:check && deno task check && deno task test && deno task build"
 	},
 	"fmt": {
 		"useTabs": true,
@@ -27,7 +32,8 @@
 		"lineWidth": 80,
 		"exclude": [
 			"dist/",
-			"release/"
+			"release/",
+			"vendor/gety-deno/"
 		]
 	},
 	"lint": {
