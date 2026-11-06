@@ -1,6 +1,6 @@
 # Gety Sample Connector
 
-This is a minimal runnable Gety custom connector for Gety 0.6.6 or later. It
+This is a minimal runnable Gety custom connector for Gety 0.7.0 or later. It
 runs in Gety's sandbox without any permissions and emits a small set of fixed
 documents that link to <https://gety.ai/>.
 
@@ -152,8 +152,8 @@ for example:
 Without `permissions` (or with `"unrestricted"`), a connector runs with full
 access to everything the user can do. Broad grants such as `"*"` in `net`, `"~"`
 in `read` or any `run` entry make the user confirm the install a second time.
-The sandbox needs Gety 0.6.6 or later, so the manifest sets
-`min_gety_app_version` to `0.6.6` and older versions refuse to install it.
+The sandbox needs Gety 0.7.0 or later, so the manifest sets
+`min_gety_app_version` to `0.7.0` and older versions refuse to install it.
 
 Gety does not open a document link that points into a connector's own folders or
 to a file that does not exist, so link documents to the upstream service (as
@@ -184,7 +184,7 @@ the base access and the errors are described in the
 1. Open Gety's settings and go to Connectors.
 2. Choose **Install from local folder** and select this repository.
 3. Gety shows the permissions to review ("This connector declares no
-   permissions."). Choose **Install**.
+   permissions."). Choose **Allow**.
 4. Wait for the first sync to finish, then search for `Gety Sample Connector`.
 
 After changing `src/index.ts`, run `deno task build`, then use **Restart** in
@@ -222,9 +222,7 @@ The tag must equal the manifest `version`, optionally prefixed with `v`
 (`v0.2.0` for `0.2.0`). Gety installs the Release marked Latest by default;
 pre-releases (`v0.2.0-beta.1`) install only through their Release link
 `https://github.com/<owner>/<repo>/releases/tag/<tag>` or
-`gety connector install --github <owner>/<repo> --version <tag>`. The **View
-documentation** link in Gety's install review, and in the **Configure** dialog
-of a connector installed from GitHub, opens the Release's page.
+`gety connector install --github <owner>/<repo> --version <tag>`.
 
 ```bash
 deno task build
@@ -287,10 +285,7 @@ keeps `manifest.json` the single source:
   any other file the connector loads at run time in `scripts/sync-package.ts`.
 - `description` is the first line of the manifest `description`.
 
-Set `homepage` to an http(s) link to the connector's documentation, such as its
-README: the **View documentation** link in Gety's install review, and in the
-**Configure** dialog once the connector is installed, opens it. Without an
-http(s) `homepage`, the link opens the version's page on npmjs.com.
+Set `homepage` to a page that explains the connector, such as its README.
 
 To publish, bump `version` in `manifest.json`, add a section for it to
 `CHANGELOG.md`, run `deno task verify`, commit, then push the tag `v<version>`

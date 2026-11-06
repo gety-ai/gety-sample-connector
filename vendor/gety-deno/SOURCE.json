@@ -1,6 +1,6 @@
 {
-	"gety_commit": "09b210be7c7e1b124edf66739d61bb7298a7cd66",
-	"gety_version": "0.6.5",
+	"gety_commit": "03448d5842950e0f88d563089bb4d651a8cdb772",
+	"gety_version": "0.7.0",
 	"protocol_version": "0.2.0",
 	"files": {
 		"host/runner.ts": "7157e81f4ceeb3c0e610e76fc474dd3a677a9fcbba5d68981d4c925b9a02648e",
