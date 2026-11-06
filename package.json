@@ -27,7 +27,7 @@
 		"id": "sample_dummy",
 		"name": "Gety Sample Connector",
 		"version": "0.2.0",
-		"min_gety_app_version": "0.6.6",
+		"min_gety_app_version": "0.7.0",
 		"capabilities": [
 			"data-source"
 		],
