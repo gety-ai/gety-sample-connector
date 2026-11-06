@@ -184,7 +184,7 @@ the base access and the errors are described in the
 1. Open Gety's settings and go to Connectors.
 2. Choose **Install from local folder** and select this repository.
 3. Gety shows the permissions to review ("This connector declares no
-   permissions."). Choose **Install**.
+   permissions."). Choose **Allow**.
 4. Wait for the first sync to finish, then search for `Gety Sample Connector`.
 
 After changing `src/index.ts`, run `deno task build`, then use **Restart** in
